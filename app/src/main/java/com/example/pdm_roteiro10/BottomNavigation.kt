@@ -11,7 +11,11 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
@@ -21,8 +25,27 @@ import androidx.navigation.compose.rememberNavController
 @Composable
 fun MainNavigation() {
     val navController = rememberNavController()
-    val vehiclesViewModel: VehiclesViewModel = viewModel()
-    val groupsViewModel: GroupsViewModel = viewModel()
+    val context = LocalContext.current
+
+    val database = remember { AppDatabase.getDatabase(context) }
+
+    val vehiclesViewModel: VehiclesViewModel = viewModel(
+        factory = object : ViewModelProvider.Factory {
+            @Suppress("UNCHECKED_CAST")
+            override fun <T : ViewModel> create(modelClass: Class<T>): T {
+                return VehiclesViewModel(database.vehicleDao()) as T
+            }
+        }
+    )
+
+    val groupsViewModel: GroupsViewModel = viewModel(
+        factory = object : ViewModelProvider.Factory {
+            @Suppress("UNCHECKED_CAST")
+            override fun <T : ViewModel> create(modelClass: Class<T>): T {
+                return GroupsViewModel(database.groupDao()) as T
+            }
+        }
+    )
 
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = navBackStackEntry?.destination?.route

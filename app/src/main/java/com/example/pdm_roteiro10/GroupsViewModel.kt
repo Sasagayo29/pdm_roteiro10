@@ -4,32 +4,35 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.ViewModel
-import kotlinx.coroutines.flow.MutableStateFlow
+import androidx.lifecycle.viewModelScope
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.launch
 
-class GroupsViewModel : ViewModel() {
-    private val _groups = MutableStateFlow<List<Group>>(emptyList())
-    val groups: StateFlow<List<Group>> = _groups.asStateFlow()
+class GroupsViewModel(private val dao: GroupDao) : ViewModel() {
+
+    val groups: StateFlow<List<Group>> = dao.getAll()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     private var _currentGroup by mutableStateOf<Group?>(null)
     val currentGroup: Group? get() = _currentGroup
+
+    var isLoading by mutableStateOf(false)
+        private set
 
     fun setCurrentGroup(group: Group?) {
         _currentGroup = group
     }
 
-    fun saveGroup(group: Group) {
-        val currentList = _groups.value.toMutableList()
-        if (group.id == 0) {
-            val newId = (currentList.maxOfOrNull { it.id } ?: 0) + 1
-            currentList.add(group.copy(id = newId))
-        } else {
-            val index = currentList.indexOfFirst { it.id == group.id }
-            if (index != -1) {
-                currentList[index] = group
-            }
+    fun saveGroup(group: Group, onSaved: () -> Unit) {
+        viewModelScope.launch {
+            isLoading = true
+            delay(500)
+            dao.insert(group)
+            isLoading = false
+            onSaved()
         }
-        _groups.value = currentList
     }
 }
